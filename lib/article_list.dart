@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:latihan_responsi_124210012/article_detail_page.dart';
+
+class Results {
+  final int? id;
+  final String? title;
+  final String? imageUrl;
+
+  Results({this.id, this.title, this.imageUrl});
+
+  factory Results.fromJson(Map<String, dynamic> json) {
+    return Results(
+      id: json['id'],
+      title: json['title'],
+      imageUrl: json['image_url'],
+    );
+  }
+}
+
+class ArticleList extends StatefulWidget {
+  @override
+  _ArticleListState createState() => _ArticleListState();
+}
+
+class _ArticleListState extends State<ArticleList> {
+  late Future<List<Results>> articles;
+
+  @override
+  void initState() {
+    super.initState();
+    articles = fetchArticles();
+  }
+
+  Future<List<Results>> fetchArticles() async {
+    final response = await http.get(Uri.parse(
+        'https://api.spaceflightnewsapi.net/v4/articles/?format=json'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body)['results'];
+      return data.map((json) => Results.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load reports');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('NEWS LIST'),
+      ),
+      body: FutureBuilder<List<Results>>(
+        future: articles,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                Results article = snapshot.data![index];
+                return Container(
+                  margin: EdgeInsets.all(8.0),
+                  padding: EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Column(
+                    children: [
+                      article.imageUrl != null
+                          ? Image.network(
+                              article.imageUrl!,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(),
+                      SizedBox(height: 8.0),
+                      ListTile(
+                        title: Text(article.title!),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ArticleDetailPage(articleId: article.id),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          }
+
+          return CircularProgressIndicator();
+        },
+      ),
+    );
+  }
+}
